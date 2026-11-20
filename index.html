@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FightFlow — Gestão de Mensalidades</title>
+<meta name="description" content="FightFlow: gestão de alunos e mensalidades para professores de luta.">
+<style>
+  :root {
+    --bg: #0f1115; --panel: #181b22; --panel2: #20242d; --line: #2c313c;
+    --text: #e8eaef; --muted: #9aa1ae; --accent: #e63946; --accent2: #ff6b6b;
+    --ok: #2ec27e; --warn: #f5a524; --bad: #e5484d; --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 5; flex-wrap: wrap; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.3rem; letter-spacing: .5px; }
+  .brand span { color: var(--accent); }
+  .logo { width: 34px; height: 34px; border-radius: 8px; background: var(--accent); display: grid; place-items: center; font-size: 1.1rem; }
+  main { max-width: 1100px; margin: 0 auto; padding: 20px; }
+  .month-nav { display: flex; align-items: center; gap: 8px; }
+  .month-nav strong { min-width: 150px; text-align: center; text-transform: capitalize; }
+  button, .btn { font: inherit; border: 1px solid var(--line); background: var(--panel2); color: var(--text); padding: 8px 14px; border-radius: 8px; cursor: pointer; }
+  button:hover { border-color: var(--muted); }
+  .primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .primary:hover { background: var(--accent2); border-color: var(--accent2); }
+  .small { padding: 5px 10px; font-size: .85rem; }
+  .ghost { background: transparent; }
+  .danger { color: var(--bad); }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
+  .card .label { color: var(--muted); font-size: .85rem; }
+  .card .value { font-size: 1.6rem; font-weight: 700; margin-top: 6px; }
+  .card .sub { color: var(--muted); font-size: .8rem; margin-top: 4px; }
+  .ok { color: var(--ok); } .warn { color: var(--warn); } .bad { color: var(--bad); }
+  .toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+  input, select { font: inherit; background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+  input:focus, select:focus { outline: 2px solid var(--accent); border-color: transparent; }
+  .toolbar input[type=search] { flex: 1; min-width: 180px; }
+  .table-wrap { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; font-size: .8rem; text-transform: uppercase; letter-spacing: .5px; }
+  tr:last-child td { border-bottom: none; }
+  tr.inactive td { opacity: .5; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: .78rem; font-weight: 600; }
+  .badge.pago { background: rgba(46,194,126,.15); color: var(--ok); }
+  .badge.pendente { background: rgba(245,165,36,.15); color: var(--warn); }
+  .badge.atrasado { background: rgba(229,72,77,.15); color: var(--bad); }
+  .badge.inativo { background: var(--panel2); color: var(--muted); }
+  .actions { display: flex; gap: 6px; }
+  .empty { padding: 40px; text-align: center; color: var(--muted); }
+  dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: var(--radius); padding: 0; width: min(480px, 94vw); }
+  dialog::backdrop { background: rgba(0,0,0,.6); }
+  dialog form { padding: 20px; display: grid; gap: 12px; }
+  dialog h2 { margin: 0 0 4px; font-size: 1.2rem; }
+  .field { display: grid; gap: 4px; }
+  .field label { font-size: .85rem; color: var(--muted); }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
+  .check { display: flex; align-items: center; gap: 8px; }
+  footer { text-align: center; color: var(--muted); font-size: .8rem; padding: 30px 20px; }
+  .muted { color: var(--muted); }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--panel2); border: 1px solid var(--line); padding: 10px 18px; border-radius: 8px; opacity: 0; transition: opacity .25s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+  @media (max-width: 640px) { .row { grid-template-columns: 1fr; } main { padding: 12px; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><div class="logo">🥊</div>Fight<span>Flow</span></div>
+  <div class="month-nav">
+    <button id="prevMonth" aria-label="Mês anterior">‹</button>
+    <strong id="monthLabel"></strong>
+    <button id="nextMonth" aria-label="Próximo mês">›</button>
+    <button id="todayMonth" class="small ghost">Hoje</button>
+  </div>
+</header>
+
+<main>
+  <section class="cards">
+    <div class="card"><div class="label">Alunos ativos</div><div class="value" id="kActive">0</div><div class="sub" id="kInactive"></div></div>
+    <div class="card"><div class="label">Recebido no mês</div><div class="value ok" id="kPaid">R$ 0</div><div class="sub" id="kPaidCount"></div></div>
+    <div class="card"><div class="label">Pendente</div><div class="value warn" id="kPending">R$ 0</div><div class="sub" id="kPendingCount"></div></div>
+    <div class="card"><div class="label">Atrasado</div><div class="value bad" id="kLate">R$ 0</div><div class="sub" id="kLateCount"></div></div>
+  </section>
+
+  <div class="toolbar">
+    <input type="search" id="search" placeholder="Buscar aluno ou modalidade…">
+    <select id="filter">
+      <option value="todos">Todos os status</option>
+      <option value="pago">Pagos</option>
+      <option value="pendente">Pendentes</option>
+      <option value="atrasado">Atrasados</option>
+      <option value="inativo">Inativos</option>
+    </select>
+    <button class="primary" id="addBtn">+ Novo aluno</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Aluno</th><th>Modalidade</th><th>Mensalidade</th><th>Vencimento</th><th>Status</th><th>Ações</th></tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div class="empty" id="empty" hidden>Nenhum aluno encontrado. Clique em <strong>+ Novo aluno</strong> para começar.</div>
+  </div>
+
+  <div class="toolbar" style="margin-top:16px; justify-content:flex-end">
+    <span class="muted" style="font-size:.85rem; margin-right:auto">Os dados ficam salvos apenas neste navegador. Faça backup de vez em quando.</span>
+    <button class="small" id="exportBtn">Exportar backup</button>
+    <button class="small" id="importBtn">Importar backup</button>
+    <input type="file" id="importFile" accept="application/json" hidden>
+  </div>
+</main>
+
+<footer>FightFlow · Gestão de mensalidades para professores de luta</footer>
+
+<dialog id="studentDialog">
+  <form method="dialog" id="studentForm">
+    <h2 id="dialogTitle">Novo aluno</h2>
+    <div class="field"><label for="fName">Nome</label><input id="fName" required maxlength="80"></div>
+    <div class="row">
+      <div class="field"><label for="fModality">Modalidade</label>
+        <input id="fModality" list="modalities" placeholder="Ex.: Jiu-Jitsu" maxlength="40">
+        <datalist id="modalities"><option>Jiu-Jitsu</option><option>Muay Thai</option><option>Boxe</option><option>MMA</option><option>Judô</option><option>Karatê</option><option>Kickboxing</option><option>Wrestling</option></datalist>
+      </div>
+      <div class="field"><label for="fPhone">WhatsApp</label><input id="fPhone" type="tel" placeholder="(11) 99999-9999" maxlength="20"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label for="fFee">Mensalidade (R$)</label><input id="fFee" type="number" min="0" step="0.01" required></div>
+      <div class="field"><label for="fDue">Dia do vencimento</label><input id="fDue" type="number" min="1" max="31" required value="10"></div>
+    </div>
+    <label class="check"><input type="checkbox" id="fActive" checked> Aluno ativo</label>
+    <div class="dialog-actions">
+      <button type="button" class="danger ghost" id="deleteBtn" hidden style="margin-right:auto">Excluir</button>
+      <button type="button" id="cancelBtn">Cancelar</button>
+      <button type="submit" class="primary">Salvar</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const KEY = 'fightflow:v1';
+  const $ = id => document.getElementById(id);
+  const brl = v => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  let db = load();
+  const now = new Date();
+  let view = { y: now.getFullYear(), m: now.getMonth() };
+  let editingId = null;
+
+  function load() {
+    try {
+      const d = JSON.parse(localStorage.getItem(KEY));
+      if (d && Array.isArray(d.students) && d.payments) return d;
+    } catch (e) {}
+    return { students: [], payments: {} };
+  }
+  function save() { localStorage.setItem(KEY, JSON.stringify(db)); }
+
+  const monthKey = () => `${view.y}-${String(view.m + 1).padStart(2, '0')}`;
+  const daysIn = (y, m) => new Date(y, m + 1, 0).getDate();
+  const dueDate = s => new Date(view.y, view.m, Math.min(s.dueDay, daysIn(view.y, view.m)));
+
+  function statusOf(s) {
+    if (!s.active) return 'inativo';
+    if (db.payments[`${s.id}|${monthKey()}`]) return 'pago';
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    return today > dueDate(s) ? 'atrasado' : 'pendente';
+  }
+
+  function toast(msg) {
+    const t = $('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  function render() {
+    const label = new Date(view.y, view.m, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    $('monthLabel').textContent = label;
+
+    const totals = { pago: [0, 0], pendente: [0, 0], atrasado: [0, 0] };
+    let active = 0, inactive = 0;
+    for (const s of db.students) {
+      const st = statusOf(s);
+      if (st === 'inativo') { inactive++; continue; }
+      active++;
+      const amount = st === 'pago' ? db.payments[`${s.id}|${monthKey()}`].amount : s.fee;
+      totals[st][0] += amount; totals[st][1]++;
+    }
+    $('kActive').textContent = active;
+    $('kInactive').textContent = inactive ? `${inactive} inativo(s)` : '';
+    $('kPaid').textContent = brl(totals.pago[0]); $('kPaidCount').textContent = `${totals.pago[1]} aluno(s)`;
+    $('kPending').textContent = brl(totals.pendente[0]); $('kPendingCount').textContent = `${totals.pendente[1]} aluno(s)`;
+    $('kLate').textContent = brl(totals.atrasado[0]); $('kLateCount').textContent = `${totals.atrasado[1]} aluno(s)`;
+
+    const q = $('search').value.trim().toLowerCase();
+    const f = $('filter').value;
+    const order = { atrasado: 0, pendente: 1, pago: 2, inativo: 3 };
+    const rows = db.students
+      .map(s => ({ s, st: statusOf(s) }))
+      .filter(({ s, st }) => (f === 'todos' || f === st) &&
+        (!q || s.name.toLowerCase().includes(q) || (s.modality || '').toLowerCase().includes(q)))
+      .sort((a, b) => order[a.st] - order[b.st] || a.s.name.localeCompare(b.s.name, 'pt-BR'));
+
+    $('empty').hidden = rows.length > 0;
+    $('tbody').innerHTML = rows.map(({ s, st }) => {
+      const label = { pago: 'Pago', pendente: 'Pendente', atrasado: 'Atrasado', inativo: 'Inativo' }[st];
+      const pay = st === 'pago'
+        ? `<button class="small" data-act="unpay" data-id="${s.id}">Desfazer</button>`
+        : st !== 'inativo' ? `<button class="small primary" data-act="pay" data-id="${s.id}">Marcar pago</button>` : '';
+      const wa = s.phone && (st === 'pendente' || st === 'atrasado')
+        ? `<button class="small" data-act="remind" data-id="${s.id}" title="Enviar lembrete no WhatsApp">💬 Cobrar</button>` : '';
+      return `<tr class="${st === 'inativo' ? 'inactive' : ''}">
+        <td><strong>${esc(s.name)}</strong>${s.phone ? `<div class="muted" style="font-size:.8rem">${esc(s.phone)}</div>` : ''}</td>
+        <td>${esc(s.modality) || '<span class="muted">—</span>'}</td>
+        <td>${brl(s.fee)}</td>
+        <td>${dueDate(s).toLocaleDateString('pt-BR')}</td>
+        <td><span class="badge ${st}">${label}</span></td>
+        <td><div class="actions">${pay}${wa}<button class="small ghost" data-act="edit" data-id="${s.id}">Editar</button></div></td>
+      </tr>`;
+    }).join('');
+  }
+
+  function openDialog(s) {
+    editingId = s ? s.id : null;
+    $('dialogTitle').textContent = s ? 'Editar aluno' : 'Novo aluno';
+    $('fName').value = s ? s.name : '';
+    $('fModality').value = s ? s.modality : '';
+    $('fPhone').value = s ? s.phone : '';
+    $('fFee').value = s ? s.fee : '';
+    $('fDue').value = s ? s.dueDay : 10;
+    $('fActive').checked = s ? s.active : true;
+    $('deleteBtn').hidden = !s;
+    $('studentDialog').showModal();
+    $('fName').focus();
+  }
+
+  $('studentForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const data = {
+      name: $('fName').value.trim(),
+      modality: $('fModality').value.trim(),
+      phone: $('fPhone').value.trim(),
+      fee: Math.max(0, parseFloat($('fFee').value) || 0),
+      dueDay: Math.min(31, Math.max(1, parseInt($('fDue').value, 10) || 1)),
+      active: $('fActive').checked,
+    };
+    if (!data.name) return;
+    if (editingId) Object.assign(db.students.find(s => s.id === editingId), data);
+    else db.students.push({ id: uid(), createdAt: new Date().toISOString(), ...data });
+    save(); render();
+    $('studentDialog').close();
+    toast(editingId ? 'Aluno atualizado' : 'Aluno cadastrado');
+  });
+
+  $('cancelBtn').onclick = () => $('studentDialog').close();
+  $('deleteBtn').onclick = () => {
+    const s = db.students.find(x => x.id === editingId);
+    if (!s || !confirm(`Excluir ${s.name}? O histórico de pagamentos também será apagado.`)) return;
+    db.students = db.students.filter(x => x.id !== editingId);
+    for (const k of Object.keys(db.payments)) if (k.startsWith(editingId + '|')) delete db.payments[k];
+    save(); render(); $('studentDialog').close(); toast('Aluno excluído');
+  };
+
+  $('tbody').addEventListener('click', e => {
+    const btn = e.target.closest('button[data-act]'); if (!btn) return;
+    const s = db.students.find(x => x.id === btn.dataset.id); if (!s) return;
+    const key = `${s.id}|${monthKey()}`;
+    switch (btn.dataset.act) {
+      case 'pay': db.payments[key] = { amount: s.fee, paidAt: new Date().toISOString() }; save(); render(); toast(`${s.name}: pagamento registrado`); break;
+      case 'unpay': delete db.payments[key]; save(); render(); toast('Pagamento desfeito'); break;
+      case 'edit': openDialog(s); break;
+      case 'remind': {
+        let phone = s.phone.replace(/\D/g, '');
+        if (phone.length <= 11) phone = '55' + phone;
+        const label = new Date(view.y, view.m, 1).toLocaleDateString('pt-BR', { month: 'long' });
+        const msg = `Olá, ${s.name.split(' ')[0]}! Passando para lembrar da mensalidade de ${label} (${brl(s.fee)}), com vencimento em ${dueDate(s).toLocaleDateString('pt-BR')}. Obrigado! 🥊`;
+        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
+        break;
+      }
+    }
+  });
+
+  const shift = d => { const t = new Date(view.y, view.m + d, 1); view = { y: t.getFullYear(), m: t.getMonth() }; render(); };
+  $('prevMonth').onclick = () => shift(-1);
+  $('nextMonth').onclick = () => shift(1);
+  $('todayMonth').onclick = () => { const t = new Date(); view = { y: t.getFullYear(), m: t.getMonth() }; render(); };
+  $('addBtn').onclick = () => openDialog(null);
+  $('search').oninput = render;
+  $('filter').onchange = render;
+
+  $('exportBtn').onclick = () => {
+    const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `fightflow-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click(); URL.revokeObjectURL(a.href);
+  };
+  $('importBtn').onclick = () => $('importFile').click();
+  $('importFile').onchange = async e => {
+    const file = e.target.files[0]; if (!file) return;
+    try {
+      const d = JSON.parse(await file.text());
+      if (!Array.isArray(d.students) || typeof d.payments !== 'object') throw new Error();
+      if (!confirm('Substituir os dados atuais pelo backup?')) return;
+      db = d; save(); render(); toast('Backup importado');
+    } catch { alert('Arquivo de backup inválido.'); }
+    e.target.value = '';
+  };
+
+  render();
+})();
+</script>
+</body>
+</html>
